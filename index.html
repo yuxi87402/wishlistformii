@@ -70,6 +70,13 @@ h1{margin:6px 0 2px;font-size:clamp(26px,5vw,36px);font-weight:800;letter-spacin
   padding:2px 10px;border-radius:8px;font-weight:800;font-size:14px}
 .stamp.r{border-color:#a89a90;color:#7d6f66}
 .letter.r{background:#ece6e1;border-color:#c9bdb4}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-8px 0 22px;color:var(--soft);font-size:14px}
+select{font:inherit;color:var(--ink);border:2px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;margin-left:4px}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 8px}
+.tg{font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;background:rgba(255,255,255,.75)}
+button.tg.pick{border:2px solid var(--line);background:#fff;cursor:pointer}
+.tg.pick.on{background:var(--lav);border-color:#a99be0}
+.dt{font-size:12px;color:var(--soft);margin:0 0 6px}
 .empty{text-align:center;padding:60px 20px;color:var(--soft);background:rgba(255,255,255,.5);border-radius:20px;border:3px dashed var(--line)}
 
 /* modal */
@@ -126,6 +133,13 @@ textarea{min-height:84px;resize:vertical}
     <button class="btn main" id="add">+ 張貼新任務</button>
   </div>
 
+  <div class="filters">
+    <span>排序<select id="sortSel" aria-label="排序方式">
+      <option value="new">張貼時間:新到舊</option><option value="old">張貼時間:舊到新</option>
+      <option value="lo">金額:低到高</option><option value="hi">金額:高到低</option>
+    </select></span>
+    <span>標籤<select id="tagSel" aria-label="依標籤篩選"></select></span>
+  </div>
   <main class="board" id="board"></main>
   <div id="empty" class="empty" hidden></div>
 </div>
@@ -135,7 +149,7 @@ textarea{min-height:84px;resize:vertical}
 
 <script>
 (function(){
-  var KEY="wishQuestBoard.v1", items=[], filter="todo";
+  var KEY="wishQuestBoard.v1", items=[], filter="todo", tagFilter="", sortBy="new";
   var $=function(s){return document.querySelector(s)};
 
   function load(){try{items=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){items=[]}}
@@ -150,6 +164,20 @@ textarea{min-height:84px;resize:vertical}
   var tt;function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("on")},2400)}
   function find(id){return items.filter(function(x){return x.id===id})[0]}
 
+  function parseTags(v){
+    var out=[];String(v||"").split(/[,,、]/).forEach(function(t){t=t.trim().slice(0,12);if(t&&out.indexOf(t)<0&&out.length<8)out.push(t)});return out;
+  }
+  function allTags(){var o=[];items.forEach(function(x){(x.tags||[]).forEach(function(t){if(o.indexOf(t)<0)o.push(t)})});return o.sort()}
+  function tagsHtml(x){var t=x.tags||[];return t.length?'<div class="tags">'+t.map(function(g){return '<span class="tg">#'+esc(g)+'</span>'}).join("")+'</div>':""}
+  function buildTagSel(){
+    var c={};items.forEach(function(x){(x.tags||[]).forEach(function(t){c[t]=(c[t]||0)+1})});
+    if(tagFilter&&!c[tagFilter])tagFilter="";
+    $("#tagSel").innerHTML='<option value="">全部標籤</option>'+Object.keys(c).sort().map(function(t){
+      return '<option value="'+esc(t)+'"'+(t===tagFilter?" selected":"")+'>'+esc(t)+' ('+c[t]+')</option>'}).join("");
+  }
+  var sorters={new:function(a,b){return b.created-a.created},old:function(a,b){return a.created-b.created},
+    lo:function(a,b){return (+a.price||0)-(+b.price||0)},hi:function(a,b){return (+b.price||0)-(+a.price||0)}};
+
   /* ---------- render ---------- */
   function render(){
     var todo=items.filter(function(x){return !x.done&&!x.rejected}), done=items.filter(function(x){return x.done}), rej=items.filter(function(x){return x.rejected});
@@ -160,18 +188,18 @@ textarea{min-height:84px;resize:vertical}
     var live=items.length-rej.length, p=live?Math.round(done.length/live*100):0;
     $("#pct").textContent=p+"%"; $("#fill").style.width=p+"%";
 
-    var list=items.filter(function(x){return filter==="all"||(filter==="todo"&&!x.done&&!x.rejected)||(filter==="done"&&x.done)||(filter==="rej"&&x.rejected)}).sort(function(a,b){return b.created-a.created});
+    buildTagSel();var list=items.filter(function(x){return (!tagFilter||(x.tags||[]).indexOf(tagFilter)>-1)&&(filter==="all"||(filter==="todo"&&!x.done&&!x.rejected)||(filter==="done"&&x.done)||(filter==="rej"&&x.rejected))}).sort(sorters[sortBy]);
     $("#board").innerHTML=list.map(function(x){
       return '<button class="card'+(x.done?" done":"")+(x.rejected?" rej":"")+'" data-id="'+x.id+'"><span class="pin"></span>'+
         (x.done?'<span class="stamp">任務完成</span>':"")+(x.rejected?'<span class="stamp r">已駁回</span>':"")+
         (x.img?'<img src="'+x.img+'" alt="">':"")+
         '<h3>'+esc(x.title)+'</h3>'+(x.why?'<p>'+esc(x.why)+'</p>':"")+
-        '<div class="meta"><span>'+money(x.done&&x.actual!==""&&x.actual!=null?x.actual:x.price)+'</span>'+
+        tagsHtml(x)+'<div class="dt">📌 '+dstr(x.created)+(x.done&&x.doneAt?" → ✅ "+dstr(x.doneAt):"")+'</div>'+'<div class="meta"><span>'+money(x.done&&x.actual!==""&&x.actual!=null?x.actual:x.price)+'</span>'+
         '<span class="chip">💬 '+(x.comments||[]).length+'</span></div></button>';
     }).join("");
     var e=$("#empty");
     e.hidden=list.length>0;
-    e.textContent=filter==="done"?"還沒有完成的任務,加油!":filter==="rej"?"還沒有駁回的任務,慾望都很誠實。":"牆上空空的,按右上角「張貼新任務」寫下第一個願望吧。";
+    e.textContent=tagFilter?"這個條件下沒有任務,換個標籤或分頁看看。":filter==="done"?"還沒有完成的任務,加油!":filter==="rej"?"還沒有駁回的任務,慾望都很誠實。":"牆上空空的,按右上角「張貼新任務」寫下第一個願望吧。";
   }
 
   /* ---------- modal ---------- */
@@ -203,15 +231,22 @@ textarea{min-height:84px;resize:vertical}
       '<label for="fT">我想要什麼?</label><input type="text" id="fT" maxlength="60" placeholder="例如:離子夾" value="'+esc(x&&x.title)+'">'+
       '<label for="fW">為什麼想要?</label><textarea id="fW" placeholder="它會讓我的生活變好在哪?">'+esc(x&&x.why)+'</textarea>'+
       '<label for="fP">預計金額</label><input type="number" id="fP" min="0" inputmode="numeric" placeholder="0" value="'+esc(x&&x.price)+'">'+
+      '<label for="fG">標籤(選填,用逗號分隔)</label><input type="text" id="fG" placeholder="例如:美容, 保養" value="'+esc((x&&x.tags||[]).join(", "))+'"><div id="tagPick" class="tags" style="margin-top:8px"></div>'+
       '<label for="fI">圖片(選填)</label><input type="file" id="fI" accept="image/*">'+
       '<img class="pre" id="pre" alt="" '+(cur?'src="'+cur+'"':'hidden')+'>'+
       '<div class="row"><button class="btn ghost" id="cx">取消</button><button class="btn main" id="ok">'+(n?"貼上牆":"儲存")+'</button></div>');
     $("#fI").onchange=function(e){var f=e.target.files[0];if(!f)return;shrink(f,function(d){cur=d;$("#pre").src=d;$("#pre").hidden=false})};
+    var pk=$("#tagPick");
+    pk.innerHTML=allTags().map(function(t){return '<button type="button" class="tg pick" data-t="'+esc(t)+'">'+esc(t)+'</button>'}).join("");
+    function mark(){var l=parseTags($("#fG").value);pk.querySelectorAll(".pick").forEach(function(b){b.classList.toggle("on",l.indexOf(b.dataset.t)>-1)})}
+    pk.onclick=function(e){var b=e.target.closest(".pick");if(!b)return;var l=parseTags($("#fG").value),i=l.indexOf(b.dataset.t);
+      if(i>-1)l.splice(i,1);else l.push(b.dataset.t);$("#fG").value=l.join(", ");mark()};
+    $("#fG").oninput=mark;mark();
     $("#cx").onclick=function(){x?show(x.id):close()};
     $("#ok").onclick=function(){
       var t=$("#fT").value.trim(); if(!t){toast("先寫下想要什麼吧");$("#fT").focus();return}
       var o=x||{id:uid(),created:Date.now(),done:false,comments:[]};
-      o.title=t;o.why=$("#fW").value.trim();o.price=+$("#fP").value||0;o.img=cur;
+      o.title=t;o.why=$("#fW").value.trim();o.price=+$("#fP").value||0;o.img=cur;o.tags=parseTags($("#fG").value);
       if(n)items.push(o);
       if(save()){render();x?show(o.id):close();toast(n?"已貼上任務牆 📌":"已更新")}
       else if(n)items.pop();
@@ -223,7 +258,7 @@ textarea{min-height:84px;resize:vertical}
     var x=find(id); if(!x){close();return}
     var cms=(x.comments||[]).map(function(c){return '<div class="cm"><small>'+dstr(c.at)+'</small>'+esc(c.t)+'</div>'}).join("")||'<small style="color:var(--soft)">還沒有留言</small>';
     open('<div class="detail">'+(x.img?'<img src="'+x.img+'" alt="">':"")+
-      '<h2>'+esc(x.title)+(x.done?' ✅':'')+(x.rejected?' 🚫':'')+'</h2>'+
+      '<h2>'+esc(x.title)+(x.done?' ✅':'')+(x.rejected?' 🚫':'')+'</h2>'+tagsHtml(x)+
       '<div class="kv"><small>為什麼想要</small><div>'+(esc(x.why)||"(沒寫理由)")+'</div></div>'+
       '<div class="kv"><small>'+(x.done?"預計金額 → 實際花費":"預計金額")+'</small><div><b>'+money(x.price)+(x.done&&x.actual!==""&&x.actual!=null?" → "+money(x.actual):"")+'</b></div></div>'+
       '<div class="kv"><small>張貼於 '+dstr(x.created)+(x.done?"・完成於 "+dstr(x.doneAt):"")+(x.rejected?"・駁回於 "+dstr(x.rejectedAt):"")+'</small></div>'+
@@ -265,6 +300,8 @@ textarea{min-height:84px;resize:vertical}
 
   /* ---------- events ---------- */
   $("#add").onclick=function(){form(null)};
+  $("#sortSel").onchange=function(){sortBy=this.value;render()};
+  $("#tagSel").onchange=function(){tagFilter=this.value;render()};
   $("#board").addEventListener("click",function(e){var c=e.target.closest(".card");if(c)show(c.dataset.id)});
   document.querySelectorAll(".tab").forEach(function(b){b.onclick=function(){
     filter=b.dataset.f;document.querySelectorAll(".tab").forEach(function(t){t.setAttribute("aria-pressed",t===b)});render()}});

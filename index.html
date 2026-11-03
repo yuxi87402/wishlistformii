@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>願望任務牆</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#f3e9dc; --board2:#ecdfce; --ink:#5a4a42; --soft:#8c7b70;
+  --peach:#ffd9c7; --mint:#cdebdc; --lav:#dcd6f5; --butter:#fff1b8; --sky:#cfe6f5;
+  --pin:#e98a8a; --ok:#6fb394; --line:#e2d3c1;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Chiron GoRound TC","PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);
+  background:var(--board);
+  background-image:radial-gradient(var(--board2) 1.5px,transparent 1.5px);background-size:22px 22px;min-height:100vh}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #9a8cdc;outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 90px}
+h1{margin:6px 0 2px;font-size:clamp(26px,5vw,36px);font-weight:800;letter-spacing:.04em}
+.sub{margin:0 0 18px;color:var(--soft)}
+
+/* HUD */
+.hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px}
+.stat{border-radius:18px;padding:14px 16px;border:2px solid rgba(90,74,66,.12);box-shadow:0 3px 0 rgba(90,74,66,.1)}
+.stat small{display:block;color:var(--soft);font-size:13px}
+.stat b{display:block;font-size:clamp(22px,4vw,30px);font-weight:800;margin-top:2px}
+.s5{background:var(--peach)} .s1{background:var(--butter)} .s2{background:var(--mint)} .s3{background:var(--lav)} .s4{background:var(--sky)}
+.bar{height:14px;border-radius:99px;background:rgba(255,255,255,.7);border:2px solid rgba(90,74,66,.12);overflow:hidden;margin:6px 0 22px}
+.bar i{display:block;height:100%;width:0;background:var(--ok);border-radius:99px;transition:width .6s}
+.barlabel{display:flex;justify-content:space-between;font-size:13px;color:var(--soft);margin-top:10px}
+
+/* toolbar */
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:22px}
+.tabs{display:flex;gap:6px;background:rgba(255,255,255,.55);padding:5px;border-radius:99px}
+.tab{border:0;background:transparent;padding:7px 16px;border-radius:99px;font-weight:600;color:var(--soft)}
+.tab[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 2px 0 rgba(90,74,66,.12)}
+.sp{flex:1}
+.btn{border:2px solid rgba(90,74,66,.15);background:#fff;border-radius:99px;padding:8px 16px;font-weight:600;box-shadow:0 3px 0 rgba(90,74,66,.12);transition:transform .1s}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(90,74,66,.12)}
+.btn.main{background:var(--pin);color:#fff;border-color:#d97575}
+.btn.ok{background:var(--ok);color:#fff;border-color:#5c9f81}
+.btn.ghost{box-shadow:none;background:transparent}
+.btn.danger{color:#c0605f}
+
+/* board */
+.board{columns:3 260px;column-gap:20px}
+.card{break-inside:avoid;margin:0 0 22px;position:relative;border-radius:6px 6px 14px 14px;padding:22px 16px 14px;cursor:pointer;
+  box-shadow:0 6px 0 rgba(90,74,66,.1),0 10px 18px rgba(90,74,66,.1);transition:transform .15s;display:block;width:100%;text-align:left;border:0}
+.card:nth-child(4n+1){background:var(--peach);transform:rotate(-1.2deg)}
+.card:nth-child(4n+2){background:var(--butter);transform:rotate(.9deg)}
+.card:nth-child(4n+3){background:var(--sky);transform:rotate(-.6deg)}
+.card:nth-child(4n+4){background:var(--lav);transform:rotate(1.2deg)}
+.card:hover{transform:rotate(0) translateY(-3px)}
+.card.done{background:var(--mint)!important}
+.card.rej{background:#e9e4e0!important;filter:saturate(.5)}
+.card.rej h3{text-decoration:line-through;text-decoration-color:rgba(90,74,66,.4)}
+.pin{position:absolute;top:-8px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--pin);box-shadow:inset -3px -3px 0 rgba(0,0,0,.12),0 3px 4px rgba(0,0,0,.2)}
+.card img{width:100%;border-radius:8px;display:block;margin-bottom:10px;max-height:260px;object-fit:cover}
+.card h3{margin:0 0 6px;font-size:19px;font-weight:800}
+.card p{margin:0 0 10px;font-size:14.5px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.meta{display:flex;justify-content:space-between;align-items:center;font-weight:800}
+.chip{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.7)}
+.stamp{position:absolute;right:10px;top:10px;transform:rotate(10deg);border:3px solid var(--ok);color:var(--ok);background:rgba(255,255,255,.85);
+  padding:2px 10px;border-radius:8px;font-weight:800;font-size:14px}
+.stamp.r{border-color:#a89a90;color:#7d6f66}
+.letter.r{background:#ece6e1;border-color:#c9bdb4}
+.empty{text-align:center;padding:60px 20px;color:var(--soft);background:rgba(255,255,255,.5);border-radius:20px;border:3px dashed var(--line)}
+
+/* modal */
+.mask{position:fixed;inset:0;background:rgba(90,74,66,.45);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px;z-index:10}
+.mask.on{display:flex}
+.sheet{background:#fffaf3;border-radius:22px;width:100%;max-width:520px;padding:22px 20px;box-shadow:0 12px 40px rgba(0,0,0,.25);animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+.sheet h2{margin:0 0 14px;font-size:22px}
+label{display:block;font-weight:600;margin:12px 0 5px;font-size:14px}
+input[type=text],input[type=number],textarea{width:100%;border:2px solid var(--line);background:#fff;border-radius:12px;padding:9px 12px}
+textarea{min-height:84px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;justify-content:flex-end}
+.pre{width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin-top:8px;display:block}
+.detail img{width:100%;border-radius:14px;margin-bottom:12px;max-height:340px;object-fit:cover}
+.kv{background:#fff;border-radius:14px;padding:10px 14px;margin:8px 0;border:2px solid var(--line)}
+.kv small{display:block;color:var(--soft);font-size:12px}
+.kv div{white-space:pre-wrap;line-height:1.65}
+.letter{background:var(--butter);border-radius:14px;padding:14px 16px;margin:12px 0;border:2px dashed #e6cf7a;white-space:pre-wrap;line-height:1.75}
+.letter small{display:block;color:var(--soft);margin-bottom:6px}
+.cm{background:#fff;border-radius:12px;padding:8px 12px;margin:6px 0;font-size:14.5px;border:2px solid var(--line)}
+.cm small{color:var(--soft);display:block;font-size:12px}
+.cmform{display:flex;gap:8px;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌱 願望任務牆</h1>
+  <p class="sub">想要的東西都是一個任務,買到的那天就是任務完成。</p>
+
+  <section class="hud" aria-label="統計">
+    <div class="stat s1"><small>願望總額(進行中)</small><b id="sWant">$0</b></div>
+    <div class="stat s2"><small>已經花掉的</small><b id="sSpent">$0</b></div>
+    <div class="stat s3"><small>進行中任務</small><b id="sTodo">0</b></div>
+    <div class="stat s4"><small>已完成任務</small><b id="sDone">0</b></div>
+    <div class="stat s5"><small>駁回省下的錢</small><b id="sSaved">$0</b></div>
+  </section>
+  <div class="barlabel"><span>任務完成率</span><span id="pct">0%</span></div>
+  <div class="bar"><i id="fill"></i></div>
+
+  <div class="tools">
+    <div class="tabs" role="group" aria-label="篩選">
+      <button class="tab" data-f="todo" aria-pressed="true">進行中</button>
+      <button class="tab" data-f="done" aria-pressed="false">已完成</button>
+      <button class="tab" data-f="rej" aria-pressed="false">已駁回</button>
+      <button class="tab" data-f="all" aria-pressed="false">全部</button>
+    </div>
+    <span class="sp"></span>
+    <button class="btn ghost" id="exp">備份</button>
+    <button class="btn ghost" id="imp">還原</button>
+    <input type="file" id="impFile" accept=".json" hidden>
+    <button class="btn main" id="add">+ 張貼新任務</button>
+  </div>
+
+  <main class="board" id="board"></main>
+  <div id="empty" class="empty" hidden></div>
+</div>
+
+<div class="mask" id="mask"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var KEY="wishQuestBoard.v1", items=[], filter="todo";
+  var $=function(s){return document.querySelector(s)};
+
+  function load(){try{items=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){items=[]}}
+  function save(){
+    try{localStorage.setItem(KEY,JSON.stringify(items));return true}
+    catch(e){toast("儲存空間滿了,請先備份並刪掉一些圖片");return false}
+  }
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function money(n){return "$"+Math.round(Number(n)||0).toLocaleString("en-US")}
+  function dstr(t){var d=new Date(t);return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()}
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+  var tt;function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("on")},2400)}
+  function find(id){return items.filter(function(x){return x.id===id})[0]}
+
+  /* ---------- render ---------- */
+  function render(){
+    var todo=items.filter(function(x){return !x.done&&!x.rejected}), done=items.filter(function(x){return x.done}), rej=items.filter(function(x){return x.rejected});
+    $("#sSaved").textContent=money(rej.reduce(function(a,x){return a+(+x.price||0)},0));
+    $("#sWant").textContent=money(todo.reduce(function(a,x){return a+(+x.price||0)},0));
+    $("#sSpent").textContent=money(done.reduce(function(a,x){return a+(x.actual!=null&&x.actual!==""?+x.actual:+x.price||0)},0));
+    $("#sTodo").textContent=todo.length; $("#sDone").textContent=done.length;
+    var live=items.length-rej.length, p=live?Math.round(done.length/live*100):0;
+    $("#pct").textContent=p+"%"; $("#fill").style.width=p+"%";
+
+    var list=items.filter(function(x){return filter==="all"||(filter==="todo"&&!x.done&&!x.rejected)||(filter==="done"&&x.done)||(filter==="rej"&&x.rejected)}).sort(function(a,b){return b.created-a.created});
+    $("#board").innerHTML=list.map(function(x){
+      return '<button class="card'+(x.done?" done":"")+(x.rejected?" rej":"")+'" data-id="'+x.id+'"><span class="pin"></span>'+
+        (x.done?'<span class="stamp">任務完成</span>':"")+(x.rejected?'<span class="stamp r">已駁回</span>':"")+
+        (x.img?'<img src="'+x.img+'" alt="">':"")+
+        '<h3>'+esc(x.title)+'</h3>'+(x.why?'<p>'+esc(x.why)+'</p>':"")+
+        '<div class="meta"><span>'+money(x.done&&x.actual!==""&&x.actual!=null?x.actual:x.price)+'</span>'+
+        '<span class="chip">💬 '+(x.comments||[]).length+'</span></div></button>';
+    }).join("");
+    var e=$("#empty");
+    e.hidden=list.length>0;
+    e.textContent=filter==="done"?"還沒有完成的任務,加油!":filter==="rej"?"還沒有駁回的任務,慾望都很誠實。":"牆上空空的,按右上角「張貼新任務」寫下第一個願望吧。";
+  }
+
+  /* ---------- modal ---------- */
+  function open(html){$("#sheet").innerHTML=html;$("#mask").classList.add("on")}
+  function close(){$("#mask").classList.remove("on");$("#sheet").innerHTML=""}
+  $("#mask").addEventListener("mousedown",function(e){if(e.target.id==="mask")close()});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
+
+  // resize image -> small JPEG data URL
+  function shrink(file,cb){
+    var r=new FileReader();
+    r.onload=function(){
+      var im=new Image();
+      im.onload=function(){
+        var m=800,s=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");
+        c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);
+        var g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);
+        cb(c.toDataURL("image/jpeg",.72));
+      };
+      im.onerror=function(){toast("這個圖片讀不起來,換一張試試")};
+      im.src=r.result;
+    };
+    r.readAsDataURL(file);
+  }
+
+  function form(x){
+    var n=!x, cur=x&&x.img||"";
+    open('<h2>'+(n?"張貼新任務":"編輯任務")+'</h2>'+
+      '<label for="fT">我想要什麼?</label><input type="text" id="fT" maxlength="60" placeholder="例如:離子夾" value="'+esc(x&&x.title)+'">'+
+      '<label for="fW">為什麼想要?</label><textarea id="fW" placeholder="它會讓我的生活變好在哪?">'+esc(x&&x.why)+'</textarea>'+
+      '<label for="fP">預計金額</label><input type="number" id="fP" min="0" inputmode="numeric" placeholder="0" value="'+esc(x&&x.price)+'">'+
+      '<label for="fI">圖片(選填)</label><input type="file" id="fI" accept="image/*">'+
+      '<img class="pre" id="pre" alt="" '+(cur?'src="'+cur+'"':'hidden')+'>'+
+      '<div class="row"><button class="btn ghost" id="cx">取消</button><button class="btn main" id="ok">'+(n?"貼上牆":"儲存")+'</button></div>');
+    $("#fI").onchange=function(e){var f=e.target.files[0];if(!f)return;shrink(f,function(d){cur=d;$("#pre").src=d;$("#pre").hidden=false})};
+    $("#cx").onclick=function(){x?show(x.id):close()};
+    $("#ok").onclick=function(){
+      var t=$("#fT").value.trim(); if(!t){toast("先寫下想要什麼吧");$("#fT").focus();return}
+      var o=x||{id:uid(),created:Date.now(),done:false,comments:[]};
+      o.title=t;o.why=$("#fW").value.trim();o.price=+$("#fP").value||0;o.img=cur;
+      if(n)items.push(o);
+      if(save()){render();x?show(o.id):close();toast(n?"已貼上任務牆 📌":"已更新")}
+      else if(n)items.pop();
+    };
+    $("#fT").focus();
+  }
+
+  function show(id){
+    var x=find(id); if(!x){close();return}
+    var cms=(x.comments||[]).map(function(c){return '<div class="cm"><small>'+dstr(c.at)+'</small>'+esc(c.t)+'</div>'}).join("")||'<small style="color:var(--soft)">還沒有留言</small>';
+    open('<div class="detail">'+(x.img?'<img src="'+x.img+'" alt="">':"")+
+      '<h2>'+esc(x.title)+(x.done?' ✅':'')+(x.rejected?' 🚫':'')+'</h2>'+
+      '<div class="kv"><small>為什麼想要</small><div>'+(esc(x.why)||"(沒寫理由)")+'</div></div>'+
+      '<div class="kv"><small>'+(x.done?"預計金額 → 實際花費":"預計金額")+'</small><div><b>'+money(x.price)+(x.done&&x.actual!==""&&x.actual!=null?" → "+money(x.actual):"")+'</b></div></div>'+
+      '<div class="kv"><small>張貼於 '+dstr(x.created)+(x.done?"・完成於 "+dstr(x.doneAt):"")+(x.rejected?"・駁回於 "+dstr(x.rejectedAt):"")+'</small></div>'+
+      (x.done?'<div class="letter"><small>💌 給過去的我</small>'+(esc(x.note)||"(沒有留話)")+'</div>':"")+
+      (x.rejected?'<div class="letter r"><small>📝 駁回理由</small>'+(esc(x.rejectNote)||"(沒有寫理由)")+'</div>':"")+
+      '<label>留言</label>'+cms+
+      '<div class="cmform"><input type="text" id="cI" placeholder="想說點什麼…" maxlength="200"><button class="btn" id="cB">送出</button></div>'+
+      '<div class="row"><button class="btn danger ghost" id="dl">刪除</button><button class="btn ghost" id="ed">編輯</button>'+
+      ((x.done||x.rejected)?'<button class="btn" id="un">改回進行中</button>':'<button class="btn" id="rj">駁回</button><button class="btn ok" id="fin">任務完成!</button>')+
+      '<button class="btn" id="cl">關閉</button></div></div>');
+    function addC(){var v=$("#cI").value.trim();if(!v)return;(x.comments=x.comments||[]).push({t:v,at:Date.now()});if(save()){render();show(id)}}
+    $("#cB").onclick=addC; $("#cI").onkeydown=function(e){if(e.key==="Enter")addC()};
+    $("#cl").onclick=close; $("#ed").onclick=function(){form(x)};
+    $("#dl").onclick=function(){if(confirm("確定要刪除「"+x.title+"」嗎?")){items=items.filter(function(y){return y.id!==id});save();render();close();toast("已刪除")}};
+    if(x.done||x.rejected)$("#un").onclick=function(){x.done=false;x.rejected=false;save();render();show(id)};
+    else{$("#fin").onclick=function(){finish(x)};$("#rj").onclick=function(){reject(x)}}
+  }
+
+  function finish(x){
+    open('<h2>🎉 買給自己了!</h2>'+
+      '<label for="aP">實際花了多少?</label><input type="number" id="aP" min="0" inputmode="numeric" value="'+esc(x.price)+'">'+
+      '<label for="aN">留一段話給過去的自己</label><textarea id="aN" placeholder="你當時猜到會等這麼久嗎?現在拿到了,感覺怎麼樣?"></textarea>'+
+      '<div class="row"><button class="btn ghost" id="cx">取消</button><button class="btn ok" id="ok">完成任務</button></div>');
+    $("#cx").onclick=function(){show(x.id)};
+    $("#ok").onclick=function(){
+      x.done=true;x.doneAt=Date.now();x.actual=$("#aP").value===""?"":+$("#aP").value;x.note=$("#aN").value.trim();
+      if(save()){render();show(x.id);toast("任務完成,辛苦了 ✨")}
+    };
+  }
+
+  function reject(x){
+    open('<h2>🚫 駁回這個任務</h2><p style="margin:0;color:var(--soft)">不買也是一種勝利,省下 '+money(x.price)+'。</p>'+
+      '<label for="rN">為什麼不想要了?(選填)</label><textarea id="rN" placeholder="例如:冷靜之後發現其實用不到"></textarea>'+
+      '<div class="row"><button class="btn ghost" id="cx">取消</button><button class="btn" id="ok">確定駁回</button></div>');
+    $("#cx").onclick=function(){show(x.id)};
+    $("#ok").onclick=function(){x.rejected=true;x.rejectedAt=Date.now();x.rejectNote=$("#rN").value.trim();
+      if(save()){render();show(x.id);toast("已駁回,錢包鬆一口氣")}};
+  }
+
+  /* ---------- events ---------- */
+  $("#add").onclick=function(){form(null)};
+  $("#board").addEventListener("click",function(e){var c=e.target.closest(".card");if(c)show(c.dataset.id)});
+  document.querySelectorAll(".tab").forEach(function(b){b.onclick=function(){
+    filter=b.dataset.f;document.querySelectorAll(".tab").forEach(function(t){t.setAttribute("aria-pressed",t===b)});render()}});
+
+  $("#exp").onclick=function(){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(items)],{type:"application/json"}));
+    a.download="wishlist-backup-"+dstr(Date.now()).replace(/\//g,"-")+".json";a.click();toast("已下載備份檔");
+  };
+  $("#imp").onclick=function(){$("#impFile").click()};
+  $("#impFile").onchange=function(e){
+    var f=e.target.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(){
+      try{var d=JSON.parse(r.result);if(!Array.isArray(d))throw 0;
+        if(confirm("這會用備份檔取代目前的所有任務,確定嗎?")){items=d;save();render();toast("還原完成")}}
+      catch(err){toast("這個檔案格式不對")}
+    };r.readAsText(f);e.target.value="";
+  };
+
+  load();render();
+})();
+</script>
+</body>
+</html>
